@@ -4,7 +4,7 @@ namespace:
   name: ""
 backend:
   deploymentName: backend
-  replicas: 1
+  replicas: 2
   containerPort: 5000
   serviceName: backend-svc
   service:
@@ -25,6 +25,7 @@ backend:
 database:
   deploymentName: postgres
   replicas: 1
+  headlessServiceName: postgres-headless
   containerPort: 5432
   serviceName: database-svc
   service:
@@ -50,10 +51,16 @@ database:
     );
 
     CREATE INDEX IF NOT EXISTS idx_wallets_id ON wallets(id);
+  persistence:
+    enabled: true
+    storageClass: local-path
+    accessModes:
+      - ReadWriteOnce
+    size: 8Gi
 
 frontend:
   deploymentName: frontend
-  replicas: 1
+  replicas: 2
   containerPort: 8080
   serviceName: frontend-svc
   service:

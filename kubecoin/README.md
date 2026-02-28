@@ -1,63 +1,63 @@
-# Kubecoin Helm Chart
+<div align="center">
 
-This chart packages the Kubernetes manifests from `k8s/dev` into Helm templates.
+<h1>KubeCoin Helm Chart</h1>
 
-## Namespace
+<p><strong>Application chart for frontend, backend, and PostgreSQL primary/replica topology</strong></p>
 
-This chart includes a namespace manifest (`templates/namespace.yaml`).
-- `namespace.create=true`: chart creates a Namespace.
-- `namespace.name=""`: uses `.Release.Namespace` from `helm install -n ...`.
+![Chart](https://img.shields.io/badge/Chart-kubecoin-0ea5e9?style=for-the-badge)
+![Backend](https://img.shields.io/badge/Backend-Deployment-2563eb?style=for-the-badge)
+![Frontend](https://img.shields.io/badge/Frontend-Deployment-1d4ed8?style=for-the-badge)
+![Database](https://img.shields.io/badge/Database-StatefulSet%20Primary%2FReplica-4338ca?style=for-the-badge)
+
+</div>
+
+---
+
+## What Gets Deployed
+
+- `backend` Deployment + Service
+- `frontend` Deployment + Service (NodePort)
+- `postgres-master` StatefulSet (1 primary)
+- `postgres-replica` StatefulSet (`database.replicas - 1` replicas)
+- `database-primary-svc` for writes
+- `database-replica-svc` for reads
+- headless service for StatefulSet DNS
+- init/replication ConfigMaps
+- PVC templates for DB data
 
 ## Install
 
 ```bash
-helm install kubecoin . -n dev
+helm upgrade --install kubecoin . -n kubecoin --create-namespace
 ```
 
-## PostgreSQL StatefulSet + Dynamic PV
-
-The database runs as:
-- one primary StatefulSet (`postgres-master`)
-- one replica StatefulSet (`postgres-replica`, created when `database.replicas > 1`)
-
-Both use `volumeClaimTemplates` so dynamic StorageClass provisioning creates PVC/PV per DB pod.
-
-Default persistence values:
-
-- `database.persistence.enabled=true`
-- `database.persistence.storageClass=local-path`
-- `database.persistence.accessModes=[ReadWriteOnce]`
-- `database.persistence.size=8Gi`
-
-Verify after install/upgrade:
+## Verify
 
 ```bash
-kubectl get statefulset,po,pvc,pv -n dev
+kubectl get deploy,sts,svc,pods,pvc,pv -n kubecoin
 ```
 
-## Scale
+## Key Values
 
-Scale app + database to 2:
+| Key | Default |
+|---|---|
+| `backend.replicas` | `2` |
+| `frontend.replicas` | `2` |
+| `database.replicas` | `2` |
+| `database.persistence.storageClass` | `local-path` |
+| `database.persistence.size` | `8Gi` |
+
+## Scale Example
 
 ```bash
-helm upgrade kubecoin . -n dev \
-  --set backend.replicas=2 \
-  --set frontend.replicas=2 \
+helm upgrade kubecoin . -n kubecoin \
+  --set backend.replicas=3 \
+  --set frontend.replicas=3 \
   --set database.replicas=2
 ```
 
-Service endpoints:
-- `database-primary-svc`: write traffic (primary)
-- `database-replica-svc`: read traffic (replicas)
+## Important
 
-## Upgrade
-
-```bash
-helm upgrade kubecoin . -n dev
-```
-
-## Uninstall
-
-```bash
-helm uninstall kubecoin -n dev
-```
+- Keep one primary only (handled by chart design).
+- Replicas are read-only followers bootstrapped from primary.
+- Use a StorageClass that supports dynamic provisioning.

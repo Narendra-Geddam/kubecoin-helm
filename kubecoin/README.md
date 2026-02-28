@@ -16,8 +16,11 @@ helm install kubecoin . -n dev
 
 ## PostgreSQL StatefulSet + Dynamic PV
 
-The database workload is deployed as a `StatefulSet` and uses `volumeClaimTemplates`.
-With a dynamic StorageClass (for example `local-path`), Kubernetes will create a PVC/PV for each DB pod.
+The database runs as:
+- one primary StatefulSet (`postgres-master`)
+- one replica StatefulSet (`postgres-replica`, created when `database.replicas > 1`)
+
+Both use `volumeClaimTemplates` so dynamic StorageClass provisioning creates PVC/PV per DB pod.
 
 Default persistence values:
 
@@ -34,15 +37,18 @@ kubectl get statefulset,po,pvc,pv -n dev
 
 ## Scale
 
-Scale app pods to 2 replicas:
+Scale app + database to 2:
 
 ```bash
 helm upgrade kubecoin . -n dev \
   --set backend.replicas=2 \
-  --set frontend.replicas=2
+  --set frontend.replicas=2 \
+  --set database.replicas=2
 ```
 
-PostgreSQL replication is not configured in this chart. Keep `database.replicas=1` unless you add a replication setup.
+Service endpoints:
+- `database-primary-svc`: write traffic (primary)
+- `database-replica-svc`: read traffic (replicas)
 
 ## Upgrade
 

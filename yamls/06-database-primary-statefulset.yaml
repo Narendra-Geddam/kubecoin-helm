@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-master
+  namespace: kubecoin
+  labels:
+    module: db-postgres
+    role: primary
+spec:
+  serviceName: postgres-headless
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      module: db-postgres
+      role: primary
+  template:
+    metadata:
+      labels:
+        module: db-postgres
+        role: primary
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:18.1-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: "postgres"
+            - name: POSTGRES_PASSWORD
+              value: "password"
+            - name: POSTGRES_DB
+              value: "kubecoin"
+            - name: REPLICATION_USER
+              value: "replicator"
+            - name: REPLICATION_PASSWORD
+              value: "replicator_password"
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: init-sql
+              mountPath: /docker-entrypoint-initdb.d/00-init.sql
+              subPath: init.sql
+            - name: repl-script
+              mountPath: /docker-entrypoint-initdb.d/01-configure-replication.sh
+              subPath: configure-replication.sh
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: init-sql
+          configMap:
+            name: postgres-init-sql
+            defaultMode: 493
+        - name: repl-script
+          configMap:
+            name: postgres-replication-config
+            defaultMode: 493
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: "local-path"
+        resources:
+          requests:
+            storage: "8Gi"

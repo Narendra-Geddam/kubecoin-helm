@@ -23,11 +23,13 @@ backend:
     password: password
 
 database:
-  deploymentName: postgres
-  replicas: 1
+  masterStatefulSetName: postgres-master
+  replicaStatefulSetName: postgres-replica
+  replicas: 2
   headlessServiceName: postgres-headless
   containerPort: 5432
-  serviceName: database-svc
+  serviceName: database-primary-svc
+  replicaServiceName: database-replica-svc
   service:
     type: ClusterIP
     port: 5432
@@ -41,6 +43,9 @@ database:
     user: postgres
     password: password
     database: kubecoin
+  replication:
+    user: replicator
+    password: replicator_password
   initSql: |
     CREATE TABLE IF NOT EXISTS wallets (
       id VARCHAR(255) PRIMARY KEY,
